@@ -1,0 +1,199 @@
+# Example Project Configuration
+
+This example demonstrates how to configure an MLOps Studio project for a customer churn prediction model.
+
+```json
+{
+  "id": "proj-churn-001",
+  "name": "Customer Churn Prediction",
+  "description": "Real-time customer churn probability prediction with drift monitoring",
+  "owner": {
+    "email": "ml-team@company.com",
+    "team": "Data Science"
+  },
+  "githubRepo": "company/churn-prediction-model",
+  "githubBranch": "main",
+  "status": "active",
+  "environments": {
+    "dev": {
+      "mlflowUri": "http://mlflow-dev.internal:5000",
+      "database": "postgres://db-dev:5432/mlops",
+      "bucketPrefix": "dev/"
+    },
+    "staging": {
+      "mlflowUri": "http://mlflow-staging.internal:5000",
+      "database": "postgres://db-staging:5432/mlops",
+      "bucketPrefix": "staging/"
+    },
+    "prod": {
+      "mlflowUri": "http://mlflow-prod.internal:5000",
+      "database": "postgres://db-prod:5432/mlops",
+      "bucketPrefix": "prod/",
+      "approvers": ["ml-lead@company.com", "product@company.com"]
+    }
+  },
+  "pipeline": {
+    "name": "ChurnPipeline",
+    "description": "8-stage production pipeline for churn prediction",
+    "version": "2.0.0",
+    "stages": [
+      {
+        "name": "Data Ingestion",
+        "locked": false,
+        "config": {
+          "source": "s3://company-data/raw/customers",
+          "format": "parquet",
+          "frequency": "daily"
+        }
+      },
+      {
+        "name": "Data Preparation",
+        "locked": false,
+        "config": {
+          "validation": true,
+          "deduplication": true,
+          "outlierDetection": "IQR"
+        }
+      },
+      {
+        "name": "Feature Store",
+        "locked": false,
+        "config": {
+          "store": "s3://company-ml/features",
+          "format": "parquet",
+          "indexing": "date,customer_id"
+        }
+      },
+      {
+        "name": "Model Registry",
+        "locked": true,
+        "config": {
+          "registry": "mlflow",
+          "modelName": "churn-predictor",
+          "allowedMetrics": ["accuracy", "auc", "precision", "recall"]
+        }
+      },
+      {
+        "name": "Deployment",
+        "locked": false,
+        "config": {
+          "strategy": "blue-green",
+          "healthCheck": "/health",
+          "monitoringDuration": 300
+        }
+      },
+      {
+        "name": "Inference",
+        "locked": false,
+        "config": {
+          "mode": "real-time",
+          "latencySLA": 100,
+          "throughput": 1000
+        }
+      },
+      {
+        "name": "Monitoring",
+        "locked": false,
+        "config": {
+          "driftDetection": true,
+          "driftThreshold": 0.05,
+          "alertChannels": ["slack", "email"]
+        }
+      },
+      {
+        "name": "CI/CD Enforcement",
+        "locked": true,
+        "config": {
+          "requiredTests": ["unit", "integration", "performance"],
+          "minCoverage": 80,
+          "approvalRequired": true
+        }
+      }
+    ]
+  },
+  "roles": {
+    "dataEngineers": ["eng1@company.com", "eng2@company.com"],
+    "mlEngineers": ["ml1@company.com", "ml2@company.com", "ml3@company.com"],
+    "productTeam": ["product-lead@company.com"],
+    "monitoring": ["monitoring@company.com"],
+    "sponsor": ["director@company.com"],
+    "admin": ["admin@company.com"]
+  },
+  "monitoring": {
+    "metrics": [
+      "data_drift_ks_statistic",
+      "prediction_latency_p99",
+      "model_accuracy",
+      "concept_drift_score",
+      "inference_throughput"
+    ],
+    "alerts": {
+      "highDrift": {
+        "threshold": 0.1,
+        "action": "email",
+        "recipients": ["ml-lead@company.com"]
+      },
+      "highLatency": {
+        "threshold": 500,
+        "action": "slack",
+        "channel": "#ml-alerts"
+      },
+      "lowAccuracy": {
+        "threshold": 0.85,
+        "action": "pagerduty",
+        "service": "ml-platform"
+      }
+    }
+  },
+  "compliance": {
+    "auditLoggingEnabled": true,
+    "encryptionAtRest": true,
+    "approvalRequired": true,
+    "retentionDays": 365
+  },
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-20T14:45:00Z"
+}
+```
+
+## Key Configuration Points
+
+### 1. **Environments**
+- **dev**: For experimentation and model development
+- **staging**: For pre-production testing
+- **prod**: For live inference with approval gates
+
+### 2. **Pipeline Stages**
+All 8 stages are defined, with two locked by default:
+- `Model Registry`: Locked to ensure MLflow registration
+- `CI/CD Enforcement`: Locked to enforce automated checks
+
+### 3. **RBAC**
+Six distinct roles manage different aspects:
+- Data Engineers: Data pipeline ownership
+- ML Engineers: Model development and registration
+- Production Team: Deployment and monitoring
+- Monitoring Team: Alert configuration
+- Sponsor: Strategic oversight
+- Admin: System administration
+
+### 4. **Monitoring Configuration**
+Drift detection thresholds and alert routing configured per metric
+
+### 5. **Compliance**
+Audit logging, encryption, and approval workflows enforced
+
+## Usage
+
+Save this configuration to `projects/churn-config.json` and load it:
+
+```bash
+curl -X POST http://localhost:5000/api/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -d @projects/churn-config.json
+```
+
+---
+
+**Next**: See [Pipeline Configuration](example-pipeline.json) and [Model Configuration](example-model.json)

@@ -1,0 +1,76 @@
+# .gitignore for MLOps Studio
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+venv/
+env/
+*.egg-info/
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Build outputs
+dist/
+build/
+out/
+*.o
+*.so
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# AWS
+credentials
+config
+.aws/
+
+# Docker
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Secrets
+.secrets
+secrets.json
+private_key*

@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - DATABASE_URL=postgresql://postgres:password@db:5432/mlopsdb
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - AUTH_DISABLED=true
+      - AUTH_MODE=demo
+      - JWT_SIGNING_SECRET=dev-secret-change-me
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      - db
+      - mlflow
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mlopsdb
+    volumes:
+      - D:/ML_Data/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mlflow:
+    build:
+      context: ./model-registry
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=postgresql://postgres:password@db:5432/mlflow
+      - MLFLOW_BACKEND_STORE_URI=postgresql://postgres:password@db:5432/mlflow
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - D:/ML_Data/mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  model-serving:
+    build:
+      context: ./model-serving
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      # Option A (recommended): serve directly from MLflow Model Registry stage/version.
+      # Examples:
+      #   MODEL_URI=models:/my-model/Production
+      #   MODEL_URI=models:/my-model/3
+      - MODEL_URI=${MODEL_URI:-}
+      # Option B: serve from a mounted/baked local model directory.
+      - MODEL_PATH=/models
+    volumes:
+      - D:/ML_Data/served_models:/models
+    depends_on:
+      - mlflow
+
+volumes: {}
+
+networks:
+  default:
+    name: mlops-network

@@ -1,0 +1,32 @@
+name: Promote to prod (approval gated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      modelId:
+        description: "Model ID to promote"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    if: ${{ secrets.AWS_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-mlops
+          aws-region: us-east-1
+
+      - name: Deploy placeholder
+        run: |
+          echo "Prod promotion requested for modelId=${{ github.event.inputs.modelId }}"
+          echo "Configure your AWS deploy steps here (ECS blue/green or K8s)."
+

@@ -1,0 +1,30 @@
+{
+  "name": "mlops-studio",
+  "version": "1.0.0",
+  "description": "Enterprise-grade MLOps platform on AWS with GitHub integration",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "model-registry",
+    "model-serving",
+    "monitoring"
+  ],
+  "scripts": {
+    "install-all": "npm install && npm install --workspace=frontend && npm install --workspace=backend",
+    "dev": "npm run dev --workspace=frontend & npm run dev --workspace=backend",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "test": "npm test --workspace=frontend && npm test --workspace=backend",
+    "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend"
+  },
+  "keywords": [
+    "mlops",
+    "aws",
+    "github",
+    "ci-cd",
+    "model-deployment",
+    "monitoring"
+  ],
+  "author": "MLOps Studio",
+  "license": "MIT"
+}

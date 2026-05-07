@@ -1,0 +1,7 @@
+apiVersion: v2
+name: mlops-studio
+description: MLOps Studio (control plane + optional services)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+

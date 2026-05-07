@@ -1,0 +1,72 @@
+namespace: mlops-studio
+
+imagePullSecrets: []
+
+backend:
+  image:
+    repository: mlops-studio-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 5000
+  env:
+    NODE_ENV: production
+    PORT: "5000"
+    AUTH_DISABLED: "true"
+    AUTH_MODE: "demo"
+    JWT_SIGNING_SECRET: "dev-secret-change-me"
+    DATABASE_URL: "postgresql://postgres:password@postgres:5432/mlopsdb"
+
+frontend:
+  image:
+    repository: mlops-studio-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  env:
+    VITE_API_URL: "http://mlops-studio-backend:5000/api"
+
+postgres:
+  enabled: true
+  image: postgres:15-alpine
+  storage:
+    size: 10Gi
+  env:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: password
+    POSTGRES_DB: mlopsdb
+
+mlflow:
+  enabled: true
+  image:
+    repository: mlops-studio-mlflow
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+
+modelServing:
+  enabled: true
+  image:
+    repository: mlops-studio-model-serving
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    MLFLOW_TRACKING_URI: "http://mlops-studio-mlflow:5000"
+    MODEL_URI: ""
+
+ingress:
+  enabled: false
+  className: ""
+  host: "mlops-studio.local"
+

@@ -1,0 +1,74 @@
+name: Pipeline validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "pipelines/**"
+      - "backend/**"
+      - ".github/workflows/pipeline-validation.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Setup Python (json.tool)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Validate pipeline JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Validating pipeline definitions..."
+          shopt -s globstar nullglob
+          files=(pipelines/**/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No pipeline json files found under pipelines/"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            echo "Checking $file"
+            python -m json.tool "$file" >/dev/null
+          done
+          echo "✓ All pipelines valid"
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ok = '${{ job.status }}' === 'success';
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: ok
+                ? '✓ Pipeline validation passed.'
+                : '❌ Pipeline validation failed. Check workflow logs.'
+            });
+

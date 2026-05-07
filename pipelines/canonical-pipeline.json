@@ -1,0 +1,259 @@
+{
+  "Comment": "MLOps Studio - Canonical 8-Stage Pipeline Orchestration",
+  "StartAt": "DataIngestion",
+  "States": {
+    "DataIngestion": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-data-ingestion",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        },
+        "Overrides": {
+          "ContainerOverrides": [
+            {
+              "Name": "data-ingestion",
+              "Environment": [
+                {
+                  "Name": "SOURCE",
+                  "Value.$": "$.source"
+                },
+                {
+                  "Name": "DESTINATION",
+                  "Value": "s3://mlops-data-${environment}/ingested"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "DataPreparation"
+    },
+    "DataPreparation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-data-preparation",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "FeatureStoreCreation"
+    },
+    "FeatureStoreCreation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-feature-store",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "ModelRegistry"
+    },
+    "ModelRegistry": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-model-registry",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 1,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "ModelDeployment"
+    },
+    "ModelDeployment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-model-deployment",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed"
+        }
+      ],
+      "Next": "ModelInferencing"
+    },
+    "ModelInferencing": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "RealTimeInference",
+          "States": {
+            "RealTimeInference": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::ecs:runTask.sync",
+              "Parameters": {
+                "LaunchType": "FARGATE",
+                "Cluster": "mlops-${environment}",
+                "TaskDefinition": "mlops-inference-service"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "BatchInference",
+          "States": {
+            "BatchInference": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::ecs:runTask.sync",
+              "Parameters": {
+                "LaunchType": "FARGATE",
+                "Cluster": "mlops-${environment}",
+                "TaskDefinition": "mlops-batch-inference"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "ModelMonitoring"
+    },
+    "ModelMonitoring": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "Parameters": {
+        "LaunchType": "FARGATE",
+        "Cluster": "mlops-${environment}",
+        "TaskDefinition": "mlops-monitoring",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": ["subnet-12345"],
+            "SecurityGroups": ["sg-12345"],
+            "AssignPublicIp": "DISABLED"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 1,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Next": "CICDEnforcement"
+    },
+    "CICDEnforcement": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "mlops-cicd-enforcer",
+        "Payload": {
+          "pipelineId.$": "$.pipelineId",
+          "environment": "${environment}"
+        }
+      },
+      "Next": "PipelineSuccess"
+    },
+    "PipelineSuccess": {
+      "Type": "Succeed"
+    },
+    "PipelineFailed": {
+      "Type": "Fail",
+      "Error": "PipelineExecutionFailed",
+      "Cause": "One or more pipeline stages failed"
+    }
+  }
+}

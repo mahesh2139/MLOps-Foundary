@@ -1,0 +1,51 @@
+name: Deploy to dev (optional AWS)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "pipelines/**"
+      - ".github/workflows/deploy-to-dev.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    if: ${{ secrets.AWS_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-mlops
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Build backend container
+        run: |
+          docker build -t mlops-backend:${{ github.sha }} backend/
+          docker tag mlops-backend:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/mlops-backend:${{ github.sha }}
+          docker tag mlops-backend:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/mlops-backend:latest
+
+      - name: Push to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/mlops-backend:${{ github.sha }}
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/mlops-backend:latest
+
+      - name: Deploy to ECS dev
+        run: |
+          aws ecs update-service \
+            --cluster mlops-dev \
+            --service mlops-backend-service \
+            --force-new-deployment \
+            --region us-east-1
+

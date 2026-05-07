@@ -1,0 +1,256 @@
+# Example Model Configuration
+
+This example shows how to register and promote a trained ML model through MLOps Studio.
+
+```json
+{
+  "id": "model-churn-v1",
+  "name": "churn-predictor",
+  "version": "1.2.0",
+  "type": "classification",
+  "framework": "scikit-learn",
+  "taskType": "binary_classification",
+  "description": "XGBoost-based customer churn prediction model with data drift monitoring",
+  "owner": {
+    "email": "ml1@company.com",
+    "team": "Data Science"
+  },
+  "source": {
+    "projectId": "proj-churn-001",
+    "githubUrl": "https://github.com/company/churn-prediction-model",
+    "commit": "a1b2c3d4e5f6g7h8i9j0",
+    "branch": "main"
+  },
+  "training": {
+    "algorithm": "XGBoost",
+    "hyperparameters": {
+      "max_depth": 6,
+      "learning_rate": 0.1,
+      "n_estimators": 100,
+      "subsample": 0.8
+    },
+    "dataVersion": "2024-01-15",
+    "trainingDataSize": 50000,
+    "trainingDuration": 3600
+  },
+  "performance": {
+    "dev": {
+      "accuracy": 0.89,
+      "precision": 0.87,
+      "recall": 0.91,
+      "auc": 0.92,
+      "f1": 0.89,
+      "confusionMatrix": {
+        "trueNegatives": 8500,
+        "falsePositives": 300,
+        "falseNegatives": 900,
+        "truePositives": 9300
+      }
+    },
+    "validation": {
+      "accuracy": 0.88,
+      "precision": 0.86,
+      "recall": 0.90,
+      "auc": 0.91
+    }
+  },
+  "artifacts": {
+    "modelPath": "s3://company-ml/models/churn/v1.2.0/model.pkl",
+    "preprocessorPath": "s3://company-ml/models/churn/v1.2.0/preprocessor.pkl",
+    "schemaPath": "s3://company-ml/models/churn/v1.2.0/schema.json",
+    "requirementsPath": "s3://company-ml/models/churn/v1.2.0/requirements.txt"
+  },
+  "features": {
+    "count": 25,
+    "names": [
+      "tenure",
+      "monthly_charges",
+      "total_charges",
+      "internet_service_fiber",
+      "internet_service_dsl",
+      "contract_month_to_month",
+      "contract_one_year",
+      "contract_two_year",
+      "paperless_billing_yes",
+      "payment_method_electronic_check",
+      "tech_support_yes",
+      "online_security_yes",
+      "phone_service_yes"
+    ],
+    "importances": {
+      "tenure": 0.25,
+      "monthly_charges": 0.18,
+      "internet_service_fiber": 0.15,
+      "contract_month_to_month": 0.12,
+      "total_charges": 0.10
+    }
+  },
+  "testing": {
+    "unitTestsPassed": true,
+    "unitTestCoverage": 85,
+    "integrationTestsPassed": true,
+    "performanceTestsPassed": true,
+    "deploymentReadiness": "green"
+  },
+  "lifecycle": {
+    "registeredAt": "2024-01-15T10:30:00Z",
+    "currentStage": "dev",
+    "stageHistory": [
+      {
+        "stage": "dev",
+        "promotedAt": "2024-01-15T10:30:00Z",
+        "promotedBy": "ml1@company.com",
+        "approved": true
+      }
+    ]
+  },
+  "monitoring": {
+    "driftDetection": {
+      "enabled": true,
+      "method": "kolmogorov_smirnov",
+      "features": ["tenure", "monthly_charges", "internet_service_fiber"],
+      "threshold": 0.05,
+      "checkInterval": 86400
+    },
+    "performanceMonitoring": {
+      "enabled": true,
+      "metrics": ["accuracy", "auc", "inference_latency"],
+      "alertThreshold": {
+        "accuracy": 0.85,
+        "latency_p99": 100
+      }
+    }
+  },
+  "deployment": {
+    "containerImage": "123456789.dkr.ecr.us-east-1.amazonaws.com/churn-inference:v1.2.0",
+    "resources": {
+      "cpu": "512m",
+      "memory": "1Gi"
+    },
+    "scalingPolicy": {
+      "minReplicas": 2,
+      "maxReplicas": 10,
+      "targetCPU": 70,
+      "targetMemory": 80
+    }
+  },
+  "metadata": {
+    "tags": ["production-ready", "churn-v1", "xgboost"],
+    "documentation": "https://wiki.company.com/ml/churn-model",
+    "supportContact": "ml-lead@company.com"
+  }
+}
+```
+
+## Model Promotion Workflow
+
+### 1. Register Model (Dev)
+```bash
+curl -X POST http://localhost:5000/api/models/register \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -d @examples/example-model.json
+```
+
+**Response**: `202 Accepted` with model ID
+
+### 2. Review in Dashboard
+- Access MLOps Studio UI at http://localhost:3000
+- Navigate to Projects → Churn → Models
+- View metrics, features, and test results
+- Request approval if all checks pass
+
+### 3. Promote to Staging
+```bash
+curl -X POST http://localhost:5000/api/models/model-churn-v1/promote \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -d '{
+    "toStage": "staging",
+    "approverEmail": "product@company.com",
+    "notes": "All performance tests passed, ready for staging validation"
+  }'
+```
+
+**Response**: `201 Created` with promotion record
+
+### 4. Promote to Production
+After staging validation passes:
+
+```bash
+curl -X POST http://localhost:5000/api/models/model-churn-v1/promote \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -d '{
+    "toStage": "prod",
+    "approverEmail": "director@company.com",
+    "deploymentStrategy": "blue-green",
+    "notes": "Staging validation complete, 99.5% uptime guaranteed with blue-green deployment"
+  }'
+```
+
+## Key Configuration Elements
+
+### 1. **Performance Metrics**
+- Accuracy: 89% on dev set
+- AUC: 0.92 (excellent discrimination)
+- Precision/Recall balance for business requirements
+
+### 2. **Feature Importance**
+Top features driving predictions:
+- `tenure`: 25% importance
+- `monthly_charges`: 18%
+- `internet_service_fiber`: 15%
+
+### 3. **Drift Detection**
+- Method: Kolmogorov-Smirnov test
+- Features monitored: Top 3 by importance
+- Threshold: 0.05 (5% allowed drift)
+- Interval: Daily checks
+
+### 4. **Deployment Configuration**
+- Container-based with ECR registry
+- Auto-scaling: 2-10 replicas based on CPU/memory
+- SLA: <100ms p99 latency
+
+### 5. **Testing Coverage**
+- Unit tests: 85% code coverage
+- Integration tests: All passed
+- Performance tests: All passed
+- Overall readiness: **Green** ✅
+
+## Inference API Example
+
+Once deployed, use the model for predictions:
+
+```bash
+# Real-time inference
+curl -X POST http://localhost:5000/api/inference/churn-v1.2.0/predict \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -d '{
+    "tenure": 12,
+    "monthly_charges": 65.50,
+    "total_charges": 786.0,
+    "internet_service_fiber": true,
+    "contract_month_to_month": true,
+    "tech_support_yes": false
+  }'
+```
+
+**Response**:
+```json
+{
+  "modelVersion": "1.2.0",
+  "prediction": 0.78,
+  "prediction_label": "high_churn_risk",
+  "confidence": 0.92,
+  "features_used": 13,
+  "inference_time_ms": 45.2,
+  "timestamp": "2024-01-20T15:30:00Z"
+}
+```
+
+---
+
+**Next**: See [Pipeline Configuration](example-pipeline.json) and [API Examples](../docs/API.md)

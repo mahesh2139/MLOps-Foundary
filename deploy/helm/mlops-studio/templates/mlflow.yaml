@@ -1,0 +1,48 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-studio-mlflow
+  labels:
+    app: mlops-studio-mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlops-studio-mlflow
+  template:
+    metadata:
+      labels:
+        app: mlops-studio-mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: "{{ .Values.mlflow.image.repository }}:{{ .Values.mlflow.image.tag }}"
+          imagePullPolicy: {{ .Values.mlflow.image.pullPolicy }}
+          ports:
+            - containerPort: 5000
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "postgresql://postgres:password@postgres:5432/mlflow"
+            - name: MLFLOW_BACKEND_STORE_URI
+              value: "postgresql://postgres:password@postgres:5432/mlflow"
+            - name: MLFLOW_DEFAULT_ARTIFACT_ROOT
+              value: "/mlflow/artifacts"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-studio-mlflow
+  labels:
+    app: mlops-studio-mlflow
+spec:
+  type: {{ .Values.mlflow.service.type }}
+  selector:
+    app: mlops-studio-mlflow
+  ports:
+    - name: http
+      port: {{ .Values.mlflow.service.port }}
+      targetPort: 5000
+{{- end }}
+

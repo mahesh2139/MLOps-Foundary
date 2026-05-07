@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-studio-frontend
+  labels:
+    app: mlops-studio-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: mlops-studio-frontend
+  template:
+    metadata:
+      labels:
+        app: mlops-studio-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+          env:
+            {{- range $k, $v := .Values.frontend.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-studio-frontend
+  labels:
+    app: mlops-studio-frontend
+spec:
+  type: {{ .Values.frontend.service.type }}
+  selector:
+    app: mlops-studio-frontend
+  ports:
+    - name: http
+      port: {{ .Values.frontend.service.port }}
+      targetPort: 3000
+
